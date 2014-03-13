@@ -48,7 +48,37 @@
         <h1>
 <a name="introducing-erlang" class="anchor" href="#introducing-erlang"><span class="octicon octicon-link"></span></a>Introducing Erlang</h1>
 
-<p>The goal of this website is to get Erlang installed on your system and write a non-trivial working application in 30 minutes.  Through this we aim to show a gentle introduction to a carefully chosen set of Erlang's features so you can decide if Erlang is a good language for your needs.</p>
+<p>The goal of this website is to get Erlang installed on your system and write a
+non-trivial working application in 30 minutes.  Through this we aim to show a
+gentle introduction to a carefully chosen set of Erlang's features so you can
+decide if Erlang is a good language for your needs.</p>
+
+<h2>
+<a name="benefits-of-erlang" class="anchor" href="#benefits-of-erlang"><span class="octicon octicon-link"></span></a>Benefits of Erlang</h2>
+
+<p>Erlang makes hard concurrency and distributed system problems easier to
+implement.  Some of the great things Erlang offers include:</p>
+
+<ul>
+<li>Mature idioms for writing inherently scalable network services.</li>
+<li>Great support for slicing and dicing network protocols/packets.</li>
+<li>A "shared nothing" concurrency model which lends itself to easy reasoning.</li>
+<li>Linear multicore performance (up to about 8 cores) with soft real-time responsiveness.</li>
+<li>Baked in distributed communication across systems.</li>
+<li>Mechanisms to monitor and automatically restart failed processes.</li>
+<li>Replace / upgrade running code without any downtime.</li>
+<li>A friendly and welcoming user community.</li>
+</ul><p>Some of the drawbacks include:</p>
+
+<ul>
+<li>A lack of broad library support.</li>
+<li>It can have a steep learning curve.</li>
+<li>A lack of newbie-approachable documentation. 
+(One of the goals of this website is to help correct this.)</li>
+<li>String support can be irritating.</li>
+<li>It is not an especially fast language when handling CPU bound computational tasks.</li>
+</ul><p>Still the positives greatly outweigh the negatives and library support seems to improve
+constantly.</p>
 
 <h2>
 <a name="installing-erlang" class="anchor" href="#installing-erlang"><span class="octicon octicon-link"></span></a>Installing Erlang</h2>
@@ -102,6 +132,159 @@
 </code></pre>
 
 <p>When you're tired of playing around with simple expressions, you can exit the REPL by executing the <code>q().</code> function which tells the REPL to quit and terminate the Erlang VM.</p>
+
+<h2>
+<a name="quick-note-on-assignment" class="anchor" href="#quick-note-on-assignment"><span class="octicon octicon-link"></span></a>Quick note on assignment</h2>
+
+<p>Erlang has immutable variables.  Once a variable name is bound to a value,
+Erlang will also "see" the bound value which can never be updated. </p>
+
+<p>I know this sounds crazy to a programmer used to a traditional mutable
+variable, but it turns out to be far less of a hassle than you might think in
+practice.</p>
+
+<p>Let's take a common Erlang data structure, a property list, as an example.</p>
+
+<p>A property list is a list of tagged tuples in the form <code>{Key, Value}</code> where
+the Key and the Value can be arbitrary Erlang terms (including another proplist).</p>
+
+<pre><code>Proplist = [{foo, 42}, {bar, true}, {qux, "Hello!"}].
+</code></pre>
+
+<p>Let's remove one of the elements from the proplist and assign it to a new variable.
+One way to accomplish that is to use <code>proplists:delete/2</code>:</p>
+
+<pre><code>NewProplist = proplists:delete(foo, Proplist).
+
+1&gt; Proplist = [{foo, 42}, {bar, true}, {qux, "Hello!"}].
+[{foo,42},{bar,true},{qux,"Hello!"}]
+2&gt; NewProplist = proplists:delete(foo, Proplist).
+[{bar,true},{qux,"Hello!"}]
+</code></pre>
+
+<p>Now we are going to assert that Proplist does not match NewProplist like this:</p>
+
+<pre><code>Proplist =/= NewProplist.
+
+3&gt; Proplist =/= NewProplist.
+true
+</code></pre>
+
+<p>Watch what happens if I try to assign the NewProplist values to Proplist:</p>
+
+<pre><code>4&gt; Proplist = NewProplist.
+** exception error: no match of right hand side value [{bar,true},
+                                                       {qux,"Hello!"}]
+</code></pre>
+
+<p>Here Erlang tells me I have a <code>badmatch</code> - the right hand side 
+<code>[{bar,true},{qux,"Hello!"}]</code> does not match the left hand side 
+<code>[{foo,42},{bar,true},{qux,"Hello!"}]</code> of my expression.</p>
+
+<p>In an application you might see "in the wild", immutable bindings are typically
+handled like this:</p>
+
+<p>remove_bird(RemovalType, BirdProplist) -&gt;
+    proplists:delete(RemovalType, BirdProplist).</p>
+
+<p>no_nuthatch() -&gt;
+    BirdsRanked = [{nuthatch, 99}, {robin, 1}, {cardinal, 2}, {sparrow, 3}],
+    BirdsRanked0 = remove_bird(nuthatch, BirdsRanked),
+    io:format("Right thinking people only like ~p~n", [BirdsRanked0]). </p>
+
+<h2>
+<a name="your-first-application" class="anchor" href="#your-first-application"><span class="octicon octicon-link"></span></a>Your First Application</h2>
+
+<p>We're going to implement fizzbuzz in Erlang.  This is a silly exercise
+often used as a basic screen to see if an interview candidate can code
+<em>anything</em>, even a trivial program.</p>
+
+<p>The rules of fizzbuzz are as follows:</p>
+
+<p>For a list of integers from 1 to 100:</p>
+
+<ul>
+<li>Output "fizz" if the number is divisible by 3,</li>
+<li>Output "buzz" if the number is divisible by 5,</li>
+<li>Output "fizzbuzz" if the number is divisible by both 3 and 5.</li>
+</ul><p>Unfortunately, you cannot define namespaced Erlang functions into the REPL.  So
+you're going to need a text editor which you like.  Start it and open a new
+file named <code>fizzbuzz.erl</code>.</p>
+
+<div class="highlight highlight-erlang"><pre><span class="p">-</span><span class="ni">module</span><span class="p">(</span><span class="n">fizzbuzz</span><span class="p">).</span>
+
+<span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">t</span><span class="o">/</span><span class="mi">0</span><span class="p">,</span> <span class="n">t</span><span class="o">/</span><span class="mi">1</span><span class="p">]).</span>
+
+<span class="nf">t</span><span class="p">()</span> <span class="o">-&gt;</span>
+    <span class="n">t</span><span class="p">(</span><span class="mi">100</span><span class="p">).</span>
+
+<span class="nf">t</span><span class="p">(</span><span class="nv">Limit</span><span class="p">)</span> <span class="k">when</span> <span class="nv">Limit</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">-&gt;</span>
+    <span class="n">fizzbuzz</span><span class="p">(</span><span class="nn">lists</span><span class="p">:</span><span class="nf">seq</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nv">Limit</span><span class="p">));</span>
+
+<span class="nf">t</span><span class="p">(_</span><span class="nv">Limit</span><span class="p">)</span> <span class="o">-&gt;</span>
+    <span class="nn">erlang</span><span class="p">:</span><span class="nf">error</span><span class="p">(</span><span class="n">badarg</span><span class="p">).</span>
+
+<span class="nf">fizzbuzz</span><span class="p">([</span><span class="nv">H</span> <span class="p">|</span> <span class="nv">T</span><span class="p">])</span> <span class="o">-&gt;</span>
+    <span class="nn">io</span><span class="p">:</span><span class="nf">format</span><span class="p">(</span><span class="s">"</span><span class="si">~b</span><span class="s">: "</span><span class="p">,</span> <span class="p">[</span><span class="nv">H</span><span class="p">]),</span>
+    <span class="n">fizzbuzz</span><span class="p">({</span><span class="nv">H</span> <span class="ow">rem</span> <span class="mi">3</span><span class="p">,</span> <span class="nv">H</span> <span class="ow">rem</span> <span class="mi">5</span><span class="p">}),</span>
+    <span class="nn">io</span><span class="p">:</span><span class="nf">format</span><span class="p">(</span><span class="s">"</span><span class="si">~n</span><span class="s">"</span><span class="p">,</span> <span class="p">[]),</span>
+    <span class="n">fizzbuzz</span><span class="p">(</span><span class="nv">T</span><span class="p">);</span>
+
+<span class="nf">fizzbuzz</span><span class="p">([])</span> <span class="o">-&gt;</span>
+    <span class="nn">io</span><span class="p">:</span><span class="nf">format</span><span class="p">(</span><span class="s">"done</span><span class="si">~n</span><span class="s">"</span><span class="p">);</span>
+
+<span class="nf">fizzbuzz</span><span class="p">({</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">})</span> <span class="o">-&gt;</span>
+    <span class="nn">io</span><span class="p">:</span><span class="nf">format</span><span class="p">(</span><span class="s">"fizzbuzz"</span><span class="p">,</span> <span class="p">[]);</span>
+
+<span class="nf">fizzbuzz</span><span class="p">({</span><span class="mi">0</span><span class="p">,</span> <span class="p">_})</span> <span class="o">-&gt;</span>
+    <span class="nn">io</span><span class="p">:</span><span class="nf">format</span><span class="p">(</span><span class="s">"fizz"</span><span class="p">,</span> <span class="p">[]);</span>
+
+<span class="nf">fizzbuzz</span><span class="p">({_,</span> <span class="mi">0</span><span class="p">})</span> <span class="o">-&gt;</span>
+    <span class="nn">io</span><span class="p">:</span><span class="nf">format</span><span class="p">(</span><span class="s">"buzz"</span><span class="p">,</span> <span class="p">[]);</span>
+
+<span class="nf">fizzbuzz</span><span class="p">(_)</span> <span class="o">-&gt;</span>
+    <span class="n">ok</span><span class="p">.</span>
+</pre></div>
+
+<p>When you have saved fizzbuzz.erl to disk, open a new Erlang REPL and then type:</p>
+
+<pre><code>1&gt; c(fizzbuzz).
+{ok,fizzbuzz}
+2&gt; fizzbuzz:t().
+1: 
+2: 
+3: fizz
+4: 
+5: buzz
+6: fizz
+7: 
+8:   
+9: fizz
+10: buzz
+11: 
+12: fizz
+13: 
+14: 
+15: fizzbuzz
+...
+</code></pre>
+
+<h2>
+<a name="your-second-application" class="anchor" href="#your-second-application"><span class="octicon octicon-link"></span></a>Your Second Application</h2>
+
+<p>We're going to build a to do list application.  We will get some experience with the forms of Erlang programming including thinking about processes and message passing which are fundamental to understanding how Erlang applications should be designed.</p>
+
+<p>The first thing we need to do is set up a directory structure.  The Erlang standard is a directory tree like this</p>
+
+<pre><code>todolist/
+   ├── ebin   &lt;-- where compiled modules and application configuration go
+   └── src    &lt;-- where your source code goes
+</code></pre>
+
+<p>So pick a directory to do your development in and then run</p>
+
+<pre><code>mkdir -p todolist/src todolist/ebin
+</code></pre>
       </section>
 
       <footer>
